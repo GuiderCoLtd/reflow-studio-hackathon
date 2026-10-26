@@ -1,0 +1,9 @@
+export VIKUNJA_DATABASE_TYPE=sqlite
+export VIKUNJA_DATABASE_PATH=/home/jay/Business/Dev/autoguide/testapps/vikunja/vikunja.db
+export VIKUNJA_FILES_BASEPATH=/home/jay/Business/Dev/autoguide/testapps/vikunja/files
+export VIKUNJA_SERVICE_INTERFACE=127.0.0.1:3456
+export VIKUNJA_SERVICE_PUBLICURL=http://127.0.0.1:3456/
+export VIKUNJA_SERVICE_ENABLEREGISTRATION=true
+export VIKUNJA_SERVICE_JWTSECRET=autoguide-local-test-secret-0001
+export VIKUNJA_SERVICE_TIMEZONE=Asia/Seoul
+export VIKUNJA_LOG_LEVEL=WARNING

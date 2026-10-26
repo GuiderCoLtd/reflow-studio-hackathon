@@ -1,0 +1,36 @@
+# Dependencies and caches
+node_modules/
+__pycache__/
+.pytest_cache/
+*.pyc
+
+# Run artifacts: videos, frames, browser session state (cookies), TTS cache,
+# vendored copies of Reflow source. Regenerate with `node src/cli.mjs run ...`.
+runs/
+
+# Intro video production lives in its own folders and is not committed yet.
+intro/
+cleanroom-v6/
+
+# Local test apps: keep the scripts, drop binaries, databases, uploads and logs.
+testapps/vikunja/*
+!testapps/vikunja/env.sh
+testapps/gitea/*
+!testapps/gitea/custom/
+testapps/gitea/custom/*
+!testapps/gitea/custom/conf/
+testapps/snapshots/
+testapps/_backup-dodam-v1/
+testapps/dodam/assets-src/
+testapps/dodam/tools/shots*/
+*.pid
+*.log
+
+# Backups left by in-place edits
+*.bak
+*.bak-*
+
+# Demo databases are rebuilt by the seed scripts
+*.db
+*.db-wal
+*.db-shm

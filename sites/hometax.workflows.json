@@ -1,0 +1,26 @@
+{
+  "product_summary": "Hometax is the Korean National Tax Service portal for tax filing, certificates and lookups.",
+  "personas": ["개인사업자", "거래처 확인이 필요한 실무자"],
+  "workflows": [
+    {
+      "id": "business-status-lookup",
+      "title": "사업자등록번호로 사업자 상태(휴·폐업) 조회하는 방법",
+      "title_en": "Look up a business's status by registration number",
+      "category": "조회/발급",
+      "persona": "거래처 확인이 필요한 실무자",
+      "goal": "Without logging in, use the Hometax menus (전체메뉴 or the 조회/발급 menu) to open the business status lookup for a registration number (사업자등록상태 조회), enter 1248100998 and run the lookup.",
+      "start_screen": "home",
+      "start_url": "https://hometax.go.kr/",
+      "path_hint": "전체메뉴 → 조회/발급 → 사업자상태 → 사업자등록번호로 조회",
+      "preconditions": "로그인 없이 이용할 수 있습니다.",
+      "sample_data": [{ "field": "사업자등록번호", "value": "1248100998" }],
+      "success_criteria": "A lookup result for 124-81-00998 is shown on screen (for example a sentence stating the taxpayer type or that the business is operating, suspended or closed).",
+      "effects": ["read"],
+      "evidence": [],
+      "value": 5,
+      "difficulty": 3,
+      "est_steps": 5,
+      "unverified": "Menu path inferred from the home page; not explored beforehand."
+    }
+  ]
+}
