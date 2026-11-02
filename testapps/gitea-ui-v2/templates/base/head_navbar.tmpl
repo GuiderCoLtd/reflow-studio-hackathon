@@ -1,0 +1,194 @@
+<style nonce="{{ctx.CspScriptNonce}}">
+#navbar-create-new { position: relative; display: flex !important; align-items: center; gap: 6px; min-width: 190px; cursor: pointer; }
+.navbar-flyout { display: none; position: absolute; left: 100%; top: -6px; min-width: 210px; background: var(--color-menu); border: 1px solid var(--color-secondary); border-radius: var(--border-radius); box-shadow: 0 6px 18px var(--color-shadow); padding: 4px 0; z-index: 30; }
+#navbar-create-new.open > .navbar-flyout { display: block; }
+.navbar-flyout a.item { display: flex !important; align-items: center; gap: 8px; padding: 9px 14px !important; color: var(--color-text) !important; white-space: nowrap; }
+.navbar-flyout a.item:hover { background: var(--color-hover); }
+.dashboard-repos a[href*="/repo/create"] { display: none !important; }
+</style>
+<nav id="navbar" aria-label="{{ctx.Locale.Tr "aria.navbar"}}">
+	<div class="navbar-left">
+		<!-- the logo -->
+		<a class="item" id="navbar-logo" href="{{AppSubUrl}}/" aria-label="{{if .IsSigned}}{{ctx.Locale.Tr "dashboard"}}{{else}}{{ctx.Locale.Tr "home_title"}}{{end}}">
+			<img width="30" height="30" src="{{AssetUrlPrefix}}/img/logo.svg" alt="{{ctx.Locale.Tr "logo"}}" aria-hidden="true">
+		</a>
+
+		<!-- mobile right menu, it must be here because in mobile view, each item is a flex column, the first item is a full row column -->
+		<div class="ui secondary menu navbar-mobile-right only-mobile">
+			{{template "base/head_navbar_icons" dict "PageGlobalData" .PageGlobalData}}
+			<button type="button" class="item ui icon mini button tw-m-0" id="navbar-expand-toggle" aria-label="{{ctx.Locale.Tr "home.nav_menu"}}">{{svg "octicon-three-bars"}}</button>
+		</div>
+
+		<!-- navbar links non-mobile -->
+		{{if and .IsSigned .MustChangePassword}}
+			{{/* No links */}}
+		{{else if .IsSigned}}
+			{{if not ctx.Consts.RepoUnitTypeIssues.UnitGlobalDisabled}}
+				<a class="item{{if .PageIsIssues}} active{{end}}" href="{{AppSubUrl}}/issues">{{ctx.Locale.Tr "issues"}}</a>
+			{{end}}
+			{{if not ctx.Consts.RepoUnitTypePullRequests.UnitGlobalDisabled}}
+				<a class="item{{if .PageIsPulls}} active{{end}}" href="{{AppSubUrl}}/pulls">{{ctx.Locale.Tr "pull_requests"}}</a>
+			{{end}}
+			{{if not (and ctx.Consts.RepoUnitTypeIssues.UnitGlobalDisabled ctx.Consts.RepoUnitTypePullRequests.UnitGlobalDisabled)}}
+				{{if .ShowMilestonesDashboardPage}}
+					<a class="item{{if .PageIsMilestonesDashboard}} active{{end}}" href="{{AppSubUrl}}/milestones">{{ctx.Locale.Tr "milestones"}}</a>
+				{{end}}
+			{{end}}
+			<a class="item{{if .PageIsExplore}} active{{end}}" href="{{AppSubUrl}}/explore/repos">{{ctx.Locale.Tr "explore_title"}}</a>
+			<div class="ui dropdown jump item" id="navbar-workspace">
+				<span class="flex-text-block">Workspace {{svg "octicon-triangle-down"}}</span>
+				<div class="menu">
+					<a class="item" href="{{AppSubUrl}}/{{.SignedUser.Name}}">{{svg "octicon-person"}} Your profile</a>
+					<a class="item" href="{{AppSubUrl}}/{{.SignedUser.Name}}?tab=stars">{{svg "octicon-star"}} Starred</a>
+					<div class="divider"></div>
+					<div class="item" id="navbar-create-new" tabindex="0" role="menuitem" aria-haspopup="true">
+						{{svg "octicon-plus"}} Create new <span class="tw-ml-auto">{{svg "octicon-chevron-right"}}</span>
+						<div class="navbar-flyout" role="menu">
+							<a class="item" href="{{AppSubUrl}}/repo/create">{{svg "octicon-repo"}} {{ctx.Locale.Tr "new_repo"}}</a>
+							<a class="item" href="{{AppSubUrl}}/repo/migrate">{{svg "octicon-repo-push"}} {{ctx.Locale.Tr "new_migrate"}}</a>
+							<a class="item" href="{{AppSubUrl}}/org/create">{{svg "octicon-organization"}} {{ctx.Locale.Tr "new_org"}}</a>
+						</div>
+					</div>
+				</div>
+			</div>
+		{{else if .IsLandingPageOrganizations}}
+			<a class="item{{if .PageIsExplore}} active{{end}}" href="{{AppSubUrl}}/explore/organizations">{{ctx.Locale.Tr "explore_title"}}</a>
+		{{else}}
+			<a class="item{{if .PageIsExplore}} active{{end}}" href="{{AppSubUrl}}/explore/repos">{{ctx.Locale.Tr "explore_title"}}</a>
+		{{end}}
+
+		{{template "custom/extra_links" .}}
+
+		{{if not .IsSigned}}
+			<a class="item" target="_blank" href="https://docs.gitea.com">{{ctx.Locale.Tr "help"}}</a>
+		{{end}}
+	</div>
+
+	<!-- the full dropdown menus -->
+	<div class="navbar-right">
+		{{if and .IsSigned .MustChangePassword}}
+			<div class="ui dropdown jump item" data-tooltip-content="{{ctx.Locale.Tr "user_profile_and_more"}}">
+				<span class="flex-text-block">
+					{{ctx.AvatarUtils.Avatar .SignedUser 24}}
+					<span class="only-mobile">{{.SignedUser.Name}}</span>
+					<span class="not-mobile flex-text-block">{{svg "octicon-triangle-down"}}</span>
+				</span>
+				<div class="menu user-menu">
+					<div class="header">
+						{{ctx.Locale.Tr "signed_in_as"}} <strong>{{.SignedUser.Name}}</strong>
+					</div>
+
+					<div class="divider"></div>
+					<a class="item" href="{{AppSubUrl}}/user/logout">
+						{{svg "octicon-sign-out"}}
+						{{ctx.Locale.Tr "sign_out"}}
+					</a>
+				</div><!-- end content avatar menu -->
+			</div><!-- end dropdown avatar menu -->
+		{{else if .IsSigned}}
+			{{template "base/head_navbar_icons" dict "ItemExtraClass" "not-mobile" "PageGlobalData" .PageGlobalData}}
+			{{/* v2 redesign: the create menu moved to Workspace in the left navigation */}}
+
+			<div class="ui dropdown jump item" data-tooltip-content="{{ctx.Locale.Tr "user_profile_and_more"}}" data-signed-in-username="{{.SignedUser.Name}}">
+				<span class="flex-text-block">
+					<span class="navbar-avatar">
+						{{ctx.AvatarUtils.Avatar .SignedUser 24}}
+						{{if .IsAdmin}}{{svg "octicon-shield-check" 16 "navbar-admin-badge"}}{{end}}
+					</span>
+					<span class="only-mobile">{{.SignedUser.Name}}</span>
+					<span class="not-mobile flex-text-block">{{svg "octicon-triangle-down"}}</span>
+				</span>
+				<div class="menu user-menu">
+					<div class="header">
+						{{ctx.Locale.Tr "signed_in_as"}} <strong>{{.SignedUser.Name}}</strong>
+					</div>
+
+					<div class="divider"></div>
+					<a class="item" href="{{.SignedUser.HomeLink}}">
+						{{svg "octicon-person"}}
+						{{ctx.Locale.Tr "your_profile"}}
+					</a>
+					{{if not .DisableStars}}
+						<a class="item" href="{{.SignedUser.HomeLink}}?tab=stars">
+							{{svg "octicon-star"}}
+							{{ctx.Locale.Tr "your_starred"}}
+						</a>
+					{{end}}
+					<a class="item" href="{{AppSubUrl}}/notifications/subscriptions">
+						{{svg "octicon-bell"}}
+						{{ctx.Locale.Tr "notification.subscriptions"}}
+					</a>
+					<a class="{{if .PageIsUserSettings}}active {{end}}item" href="{{AppSubUrl}}/user/settings">
+						{{svg "octicon-tools"}}
+						{{ctx.Locale.Tr "your_settings"}}
+					</a>
+					<a class="item" target="_blank" href="https://docs.gitea.com">
+						{{svg "octicon-question"}}
+						{{ctx.Locale.Tr "help"}}
+					</a>
+					{{if .IsAdmin}}
+					<div class="divider"></div>
+					<a class="{{if .PageIsAdmin}}active {{end}}item" href="{{AppSubUrl}}/-/admin">
+						{{svg "octicon-server"}}
+						{{ctx.Locale.Tr "admin_panel"}}
+					</a>
+					{{end}}
+					<div class="divider"></div>
+					<a class="item" href="{{AppSubUrl}}/user/logout">
+						{{svg "octicon-sign-out"}}
+						{{ctx.Locale.Tr "sign_out"}}
+					</a>
+				</div><!-- end content avatar menu -->
+			</div><!-- end dropdown avatar menu -->
+		{{else}}
+			{{if .ShowRegistrationButton}}
+				<a class="item{{if .PageIsSignUp}} active{{end}}" href="{{AppSubUrl}}/user/sign_up">
+					{{svg "octicon-person"}}
+					<span class="tw-ml-1">{{ctx.Locale.Tr "register"}}</span>
+				</a>
+			{{end}}
+			<a class="item{{if .PageIsSignIn}} active{{end}}" rel="nofollow" href="{{AppSubUrl}}/user/login">
+				{{svg "octicon-sign-in"}}
+				<span class="tw-ml-1">{{ctx.Locale.Tr "sign_in"}}</span>
+			</a>
+		{{end}}
+	</div><!-- end full right menu -->
+
+	{{$activeStopwatch := and .PageGlobalData (call .PageGlobalData.GetActiveStopwatch)}}
+	{{/* always rendered so the Tippy popup has content to clone if the icon appears via a real-time push */}}
+	<div class="active-stopwatch-popup tippy-target">
+		<div class="flex-text-block tw-p-3">
+			<a class="stopwatch-link flex-text-block muted" {{if $activeStopwatch}}href="{{$activeStopwatch.IssueLink}}"{{end}}>
+				{{svg "octicon-issue-opened" 16}}
+				<span class="stopwatch-issue">{{if $activeStopwatch}}{{$activeStopwatch.RepoSlug}}#{{$activeStopwatch.IssueIndex}}{{end}}</span>
+			</a>
+			<div class="tw-flex tw-gap-1">
+				<form class="stopwatch-commit form-fetch-action" method="post" {{if $activeStopwatch}}action="{{$activeStopwatch.IssueLink}}/times/stopwatch/stop"{{end}}>
+					<button
+						type="submit"
+						class="ui button mini compact basic icon tw-mr-0"
+						data-tooltip-content="{{ctx.Locale.Tr "repo.issues.stop_tracking"}}"
+					>{{svg "octicon-square-fill"}}</button>
+				</form>
+				<form class="stopwatch-cancel form-fetch-action" method="post" {{if $activeStopwatch}}action="{{$activeStopwatch.IssueLink}}/times/stopwatch/cancel"{{end}}>
+					<button
+						type="submit"
+						class="ui button mini compact basic icon tw-mr-0"
+						data-tooltip-content="{{ctx.Locale.Tr "repo.issues.cancel_tracking"}}"
+					>{{svg "octicon-trash"}}</button>
+				</form>
+			</div>
+		</div>
+	</div>
+</nav>
+{{template "base/head_impersonate_banner"}}
+{{template "base/head_banner"}}
+<script nonce="{{ctx.CspScriptNonce}}">
+document.addEventListener('click', (e) => {
+  const row = e.target.closest('#navbar-create-new');
+  if (!row || e.target.closest('.navbar-flyout a')) return;
+  e.stopPropagation();
+  e.preventDefault();
+  row.classList.toggle('open');
+}, true);
+</script>

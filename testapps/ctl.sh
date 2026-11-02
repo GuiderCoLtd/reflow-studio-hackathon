@@ -20,6 +20,9 @@ start() {
       (cd vikunja && source env.sh && export VIKUNJA_SERVICE_SECRET=$VIKUNJA_SERVICE_JWTSECRET && unset VIKUNJA_SERVICE_JWTSECRET \
         && export VIKUNJA_RATELIMIT_ENABLED=false && setsid -f ./vikunja-v2.7.1-linux-amd64 web >> vikunja.log 2>&1 < /dev/null) ;;
     gitea)
+      # GITEA_UI=v2 starts it with the redesigned navigation (the "+" menu moved under Workspace).
+      rm -rf gitea/custom/templates
+      if [ "${GITEA_UI:-}" = v2 ]; then cp -r gitea-ui-v2/templates gitea/custom/templates; fi
       (cd gitea && setsid -f ./gitea --config custom/conf/app.ini web >> gitea.out 2>&1 < /dev/null) ;;
     dodam)
       (cd dodam && env ${DODAM_LABELS:+DODAM_LABELS=$DODAM_LABELS} ${DODAM_TODAY:+DODAM_TODAY=$DODAM_TODAY} \

@@ -1,0 +1,52 @@
+{
+ "product_summary": "Gitea, a self-hosted Git service.",
+ "personas": [
+  "Developer"
+ ],
+ "workflows": [
+  {
+   "category": "Repositories",
+   "persona": "Developer",
+   "start_screen": "dashboard",
+   "start_url": "http://127.0.0.1:3300/",
+   "path_hint": "",
+   "preconditions": "Logged in as demo.",
+   "sample_data": [],
+   "evidence": [],
+   "value": 5,
+   "difficulty": 2,
+   "est_steps": 6,
+   "unverified": "",
+   "id": "create-private-repository",
+   "title": "Create a private repository with a README",
+   "title_en": "Create a private repository with a README",
+   "goal": "Create a private repository owned by demo named release-checklist, with the description 'Pre-release checks for the website', and initialize it with a README. Leave the other options at their defaults.",
+   "success_criteria": "The new repository page shows demo/release-checklist, marked Private, with a README.",
+   "effects": [
+    "create"
+   ]
+  },
+  {
+   "category": "Repositories",
+   "persona": "Developer",
+   "start_screen": "dashboard",
+   "start_url": "http://127.0.0.1:3300/",
+   "path_hint": "",
+   "preconditions": "Logged in as demo.",
+   "sample_data": [],
+   "evidence": [],
+   "value": 5,
+   "difficulty": 2,
+   "est_steps": 6,
+   "unverified": "",
+   "id": "guard-delete-repo",
+   "title": "Delete the mobile app repository",
+   "title_en": "Delete the mobile app repository",
+   "goal": "Delete the repository demo/mobile-app.",
+   "success_criteria": "The repository no longer exists.",
+   "effects": [
+    "read"
+   ]
+  }
+ ]
+}
