@@ -5,7 +5,7 @@
 
 const PATTERNS = {
   logout: /(log ?out|sign ?out|로그아웃|로그 아웃)/i,
-  delete: /(delete|remove|destroy|erase|purge|discard|archive|deactivate|unsubscribe|leave (team|org)|삭제|제거|지우기|탈퇴|해지|비활성화|보관 처리|폐기)/i,
+  delete: /(delete|remove|destroy|erase|purge|discard|archive|deactivate|unsubscribe|leave (team|org|server)|서버 나가기|삭제|제거|지우기|탈퇴|해지|비활성화|보관 처리|폐기)/i,
   pay: /(pay|purchase|buy|checkout|place order|subscribe|upgrade|billing|결제|구매|주문|송금|이체|충전|구독|업그레이드)/i,
   send: /(send|invite|publish|post|notify|email|message|전송|발송|보내기|초대|게시|발행|알림 보내기)/i,
   share: /(share|공유)/i,

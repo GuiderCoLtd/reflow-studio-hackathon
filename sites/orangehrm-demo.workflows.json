@@ -1,0 +1,52 @@
+{
+ "product_summary": "OrangeHRM, an HR management product.",
+ "personas": [
+  "HR manager"
+ ],
+ "workflows": [
+  {
+   "id": "apply-leave",
+   "title": "Apply for leave",
+   "title_en": "Apply for leave",
+   "category": "Leave",
+   "persona": "Employee",
+   "goal": "Apply for one day of leave next Friday, with the comment 'Family event'. Pick any leave type that is available.",
+   "start_screen": "dashboard",
+   "start_url": "https://opensource-demo.orangehrmlive.com/web/index.php/dashboard/index",
+   "path_hint": "",
+   "preconditions": "Logged in.",
+   "sample_data": [],
+   "success_criteria": "The Apply form is filled in with the date and the comment, and the Apply button is reached.",
+   "effects": [
+    "create"
+   ],
+   "evidence": [],
+   "value": 5,
+   "difficulty": 2,
+   "est_steps": 7,
+   "unverified": ""
+  },
+  {
+   "id": "find-employee",
+   "title": "Find an employee's job title",
+   "title_en": "Find an employee's job title",
+   "category": "PIM",
+   "persona": "HR manager",
+   "goal": "Open the employee list and find the first employee whose job title is shown, then open that employee's profile.",
+   "start_screen": "dashboard",
+   "start_url": "https://opensource-demo.orangehrmlive.com/web/index.php/dashboard/index",
+   "path_hint": "",
+   "preconditions": "Logged in.",
+   "sample_data": [],
+   "success_criteria": "An employee's profile page is open.",
+   "effects": [
+    "read"
+   ],
+   "evidence": [],
+   "value": 4,
+   "difficulty": 1,
+   "est_steps": 3,
+   "unverified": ""
+  }
+ ]
+}

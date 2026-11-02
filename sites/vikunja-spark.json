@@ -1,0 +1,18 @@
+{
+  "id": "vikunja-spark",
+  "name": "Vikunja",
+  "description": "Open-source task and project manager (local test instance).",
+  "baseUrl": "http://127.0.0.1:3456/",
+  "siteMode": "sandbox",
+  "lang": "ko",
+  "login": {
+    "url": "http://127.0.0.1:3456/login",
+    "steps": [
+      { "fill": "#username", "value": "demo" },
+      { "fill": "#password", "secret": "VIKUNJA_PASSWORD", "fallback": "DemoPass!2026" },
+      { "click": "button[type=submit], .button.is-primary" }
+    ],
+    "loggedOutUrl": "/login"
+  },
+  "reset": { "kind": "sqlite-copy", "db": "testapps/vikunja/vikunja.db", "restart": "vikunja" }
+}

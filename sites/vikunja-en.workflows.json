@@ -1,0 +1,35 @@
+{
+  "product_summary": "Vikunja is an open-source task and project manager.",
+  "personas": [
+    "Individual user"
+  ],
+  "workflows": [
+    {
+      "id": "add-inbox-task",
+      "title": "Add a new task to the Inbox",
+      "title_en": "Add a new task to the Inbox",
+      "category": "Tasks",
+      "persona": "Individual user",
+      "goal": "Open Inbox and create a task titled 'Prepare agenda for the redesign kickoff meeting'. Verify that it belongs to Inbox.",
+      "start_screen": "home",
+      "start_url": "http://127.0.0.1:3456/",
+      "path_hint": "Inbox \u2192 Add a task \u2192 Add",
+      "preconditions": "Logged in and able to add tasks to Inbox. No task with the same title exists.",
+      "sample_data": [
+        {
+          "field": "Add a task",
+          "value": "Prepare agenda for the redesign kickoff meeting"
+        }
+      ],
+      "success_criteria": "Inbox displays a task with the exact supplied title.",
+      "effects": [
+        "create"
+      ],
+      "evidence": [],
+      "value": 5,
+      "difficulty": 1,
+      "est_steps": 3,
+      "unverified": "English UI labels assumed."
+    }
+  ]
+}

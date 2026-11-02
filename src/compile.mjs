@@ -6,35 +6,58 @@ import path from 'node:path';
 import { callJSON, MODELS } from './llm.mjs';
 import { writeJson, truncate } from './util.mjs';
 
+// Actions a deterministic replay cannot reproduce.
+const NOT_REPLAYABLE = ['go_back', 'scroll', 'drag', 'raw_type', 'raw_click'];
+
 const LANG = { ko: 'Korean (polite 해요체 for narration, concise imperative for instructions)', en: 'English' };
 
-const EDIT_SCHEMA = {
-  type: 'object',
-  properties: {
-    keep: { type: 'array', items: { type: 'integer' }, description: 'Indexes of trace steps a user must perform, in order' },
-    steps: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          index: { type: 'integer' },
-          title: { type: 'string', description: 'Very short step label (max ~18 Korean chars)' },
-          instruction: { type: 'string', description: 'One imperative sentence for docs and on-screen tooltips; quote UI labels verbatim in single quotes' },
-          narration: { type: 'string', description: 'What the narrator says while this step happens: ONE short spoken sentence (Korean: at most ~40 characters). Say where to look and what to press. Do not read long labels in full; refer to them by their key words.' },
-        },
-        required: ['index', 'title', 'instruction', 'narration'],
-        additionalProperties: false,
-      },
-    },
-    guide_title: { type: 'string' },
-    intro: { type: 'string', description: "Narrated opening line, one short sentence (Korean: at most ~35 characters) that states what the guide covers, e.g. '…하는 방법을 안내해요.'; no suggestive '~해 봐요'" },
-    outro: { type: 'string', description: 'Narrated closing line, one short sentence (Korean: at most ~35 characters)' },
-    summary: { type: 'string', description: '2-3 sentence description for the article header' },
-    prerequisites: { type: 'array', items: { type: 'string' } },
-    result_note: { type: 'string', description: 'What the user sees when finished' },
+// Length and wording hints follow the guide's language: Korean examples in the schema
+// pull an English guide's narration into Korean.
+const HINTS = {
+  ko: {
+    title: 'Very short step label (max ~18 Korean chars)',
+    narration: 'What the narrator says while this step happens: ONE short spoken sentence (Korean: at most ~40 characters). Say where to look and what to press. Do not read long labels in full; refer to them by their key words.',
+    intro: "Narrated opening line, one short sentence (Korean: at most ~35 characters) that states what the guide covers, e.g. '…하는 방법을 안내해요.'; no suggestive '~해 봐요'",
+    outro: 'Narrated closing line, one short sentence (Korean: at most ~35 characters)',
   },
-  required: ['keep', 'steps', 'guide_title', 'intro', 'outro', 'summary', 'prerequisites', 'result_note'],
-  additionalProperties: false,
+  other: {
+    title: 'Very short step label (3 to 5 words)',
+    narration: 'What the narrator says while this step happens: ONE short spoken sentence (at most 14 words). Say where to look and what to press. Do not read long labels in full; refer to them by their key words.',
+    intro: 'Narrated opening line, one short sentence (at most 14 words) that states what the guide covers',
+    outro: 'Narrated closing line, one short sentence (at most 12 words)',
+  },
+};
+
+const editSchema = (lang) => {
+  const h = HINTS[lang] || HINTS.other;
+  return {
+    type: 'object',
+    properties: {
+      keep: { type: 'array', items: { type: 'integer' }, description: 'Indexes of trace steps a user must perform, in order' },
+      steps: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            index: { type: 'integer' },
+            title: { type: 'string', description: h.title },
+            instruction: { type: 'string', description: 'One imperative sentence for docs and on-screen tooltips; quote UI labels verbatim in single quotes' },
+            narration: { type: 'string', description: h.narration },
+          },
+          required: ['index', 'title', 'instruction', 'narration'],
+          additionalProperties: false,
+        },
+      },
+      guide_title: { type: 'string' },
+      intro: { type: 'string', description: h.intro },
+      outro: { type: 'string', description: h.outro },
+      summary: { type: 'string', description: '2-3 sentence description for the article header' },
+      prerequisites: { type: 'array', items: { type: 'string' } },
+      result_note: { type: 'string', description: 'What the user sees when finished' },
+    },
+    required: ['keep', 'steps', 'guide_title', 'intro', 'outro', 'summary', 'prerequisites', 'result_note'],
+    additionalProperties: false,
+  };
 };
 
 function describe(s, i) {
@@ -46,14 +69,14 @@ function describe(s, i) {
   return `[${i}] ${s.tool} ${t}${where}${val} status=${s.status}${s.guideStep ? '' : ' (agent marked non-guide)'}${moved}${net ? ` net=${net}` : ''}\n     caption: ${s.caption}`;
 }
 
-export async function compileTrace(trace, { outDir, lang = 'ko', site } = {}) {
+export async function compileTrace(trace, { outDir, lang = 'ko', site, feedback = '' } = {}) {
   const lines = trace.steps.map((s, i) => describe(s, i)).join('\n');
   const edit = await callJSON({
     model: MODELS.writer,
     effort: 'medium',
     system: `You turn a browser agent's action log into a clean how-to guide. Keep only the actions a user must perform to reproduce the result, in order: drop failed attempts, detours, scrolling, exploratory clicks, and focus clicks immediately followed by typing into the same field. Never keep go_back steps, and drop any step whose effect a later go_back undid (for example opening a file preview in a new tab and closing it again). Never keep a step whose status is error or blocked. Write all copy in ${LANG[lang] || lang}. Narration is spoken over the video, so it must be brief and conversational; the instruction text carries the full detail. Quote on-screen labels verbatim in single quotes exactly as in the log (do not translate them).`,
-    user: `WORKFLOW: ${trace.workflow.title}\nGOAL: ${trace.workflow.goal}\nRESULT: ${trace.verdict.success ? 'success' : 'failed'} — ${trace.verdict.end_state}\n\nACTION LOG:\n${lines}`,
-    schema: EDIT_SCHEMA,
+    user: `WORKFLOW: ${trace.workflow.title}\nGOAL: ${trace.workflow.goal}\nRESULT: ${trace.verdict.success ? 'success' : 'failed'} — ${trace.verdict.end_state}\n\nACTION LOG:\n${lines}${feedback ? `\n\nYOUR PREVIOUS SELECTION FAILED VERIFICATION:\n${feedback}` : ''}`,
+    schema: editSchema(lang),
     name: 'guide_edit',
     label: 'compile',
   });
@@ -70,7 +93,7 @@ export async function compileTrace(trace, { outDir, lang = 'ko', site } = {}) {
       break;
     }
   });
-  const keep = edit.keep.filter((idx) => !['go_back', 'scroll'].includes(trace.steps[idx]?.tool) && !undone.has(idx));
+  const keep = edit.keep.filter((idx) => !NOT_REPLAYABLE.includes(trace.steps[idx]?.tool) && !undone.has(idx));
   const steps = [];
   for (const idx of keep) {
     let s = trace.steps[idx];
@@ -83,7 +106,7 @@ export async function compileTrace(trace, { outDir, lang = 'ko', site } = {}) {
     steps.push({
       i: steps.length + 1,
       from: idx,
-      action: { click: 'click', fill: 'fill', select_option: 'select', press_key: 'press', hover: 'hover' }[s.tool] || s.tool,
+      action: { click: 'click', fill: 'fill', select_option: 'select', press_key: 'press', hover: 'hover', double_click: 'dblclick' }[s.tool] || s.tool,
       bundle: s.bundle ? { candidates: s.bundle.candidates, describe: s.bundle.describe, role: s.bundle.role, name: s.bundle.name } : null,
       role: s.target?.role || null,
       name: s.target?.name || null,

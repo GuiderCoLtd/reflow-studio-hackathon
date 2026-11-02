@@ -138,6 +138,10 @@ export async function replayScript(session, script, { mode = 'verify', outDir, o
             });
             if (film) r.frames.burst = await burst(session, shoot);
             break;
+          case 'dblclick':
+            await loc.dblclick({ timeout: 6000 });
+            if (film) r.frames.burst = await burst(session, shoot);
+            break;
           case 'fill': {
             const text = String(step.value ?? '');
             if (film) {
@@ -195,6 +199,11 @@ export async function replayScript(session, script, { mode = 'verify', outDir, o
       r.status = 'error';
       r.error = err.message.split('\n')[0].slice(0, 200);
       log('replay', `step ${step.i} failed: ${r.error}`);
+      if (!film && outDir) {
+        ensureDir(outDir);
+        r.shot = path.join(outDir, 'verify-failed.jpg');
+        await page().screenshot({ path: r.shot, type: 'jpeg', quality: 90 }).catch(() => (r.shot = null));
+      }
       results.push(r);
       break;
     }

@@ -11,6 +11,46 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 // Step numbers are typography, not badges: tabular "01", "02", ...
 const stepNo = (i) => String(i).padStart(2, '0');
 
+const COPY = {
+  ko: {
+    verified: (d) => `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 실제 화면에서 자동 검증됨`,
+    steps: (n) => `단계 ${n}개`,
+    before: '시작하기 전에',
+    step: (i) => `${i}단계. `,
+    result: '결과',
+    resultAlt: '결과 화면',
+    tryIt: '따라 해 보기',
+    prev: '이전',
+    restart: '처음부터',
+    guide: ' 사용 가이드',
+    start: '시작하기',
+    stepsShort: '단계',
+    done: '완료했어요',
+    again: '다시 해 보기',
+    doneShort: '완료',
+    next: '다음',
+  },
+  en: {
+    verified: (d) => `Verified on the live screens, ${d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`,
+    steps: (n) => `${n} steps`,
+    before: 'Before you start',
+    step: (i) => `Step ${i}. `,
+    result: 'Result',
+    resultAlt: 'Result screen',
+    tryIt: 'Try it',
+    prev: 'Back',
+    restart: 'Start over',
+    guide: ' how-to guide',
+    start: 'Start',
+    stepsShort: ' steps',
+    done: 'All done',
+    again: 'Try again',
+    doneShort: 'Done',
+    next: 'Next',
+  },
+};
+const copyFor = (script) => COPY[script.lang] || COPY.en;
+
 // The still that best shows what the user must do in this step.
 function actionStill(st) {
   const f = st.frames || {};
@@ -76,7 +116,8 @@ export function buildArticle(wfDir, { width = 1440, color = '#2563EB' } = {}) {
   processStills(jobs);
 
   const verified = script.verified?.ok && script.verified?.at ? new Date(script.verified.at) : null;
-  const verifiedText = verified ? `${verified.getFullYear()}년 ${verified.getMonth() + 1}월 ${verified.getDate()}일 실제 화면에서 자동 검증됨` : '';
+  const L = copyFor(script);
+  const verifiedText = verified ? L.verified(verified) : '';
   const html = `<!doctype html>
 <html lang="${esc(script.lang || 'ko')}">
 <head>
@@ -114,20 +155,20 @@ export function buildArticle(wfDir, { width = 1440, color = '#2563EB' } = {}) {
 <main>
   <h1>${esc(script.title)}</h1>
   <p class="summary">${esc(script.summary)}</p>
-  <div class="meta"><span>${esc(script.site?.name || '')}</span><span>단계 ${script.steps.length}개</span>${verifiedText ? `<span>${esc(verifiedText)}</span>` : ''}</div>
-  ${script.prerequisites?.length ? `<section class="prereq"><h2>시작하기 전에</h2><ul>${script.prerequisites.map((p) => `<li>${esc(p)}</li>`).join('')}</ul></section>` : ''}
+  <div class="meta"><span>${esc(script.site?.name || '')}</span><span>${L.steps(script.steps.length)}</span>${verifiedText ? `<span>${esc(verifiedText)}</span>` : ''}</div>
+  ${script.prerequisites?.length ? `<section class="prereq"><h2>${L.before}</h2><ul>${script.prerequisites.map((p) => `<li>${esc(p)}</li>`).join('')}</ul></section>` : ''}
   <ol class="steps">
 ${steps
   .map(
     (s) => `    <li>
-      <div class="step-head"><span class="num" aria-hidden="true">${stepNo(s.i)}</span><h2><span class="sr">${s.i}단계. </span>${esc(s.title)}</h2></div>
+      <div class="step-head"><span class="num" aria-hidden="true">${stepNo(s.i)}</span><h2><span class="sr">${L.step(s.i)}</span>${esc(s.title)}</h2></div>
       <p class="instruction">${esc(s.instruction)}</p>
       ${s.img ? `<figure><img src="${s.img}" alt="${esc(s.title)}" loading="lazy"></figure>` : ''}
     </li>`,
   )
   .join('\n')}
   </ol>
-  <section class="result"><h2>결과</h2><p>${esc(script.result_note || script.outro)}</p>${last ? '<figure style="margin-left:0"><img src="img/result.jpg" alt="결과 화면" loading="lazy"></figure>' : ''}</section>
+  <section class="result"><h2>${L.result}</h2><p>${esc(script.result_note || script.outro)}</p>${last ? '<figure style="margin-left:0"><img src="img/result.jpg" alt="${L.resultAlt}" loading="lazy"></figure>' : ''}</section>
 </main>
 </body>
 </html>`;
@@ -137,9 +178,9 @@ ${steps
     '',
     script.summary,
     '',
-    script.prerequisites?.length ? `**시작하기 전에**\n\n${script.prerequisites.map((p) => `- ${p}`).join('\n')}\n` : '',
-    ...steps.map((s) => `## ${s.i}단계. ${s.title}\n\n${s.instruction}\n\n${s.img ? `![${s.title}](${s.img})\n` : ''}`),
-    `## 결과\n\n${script.result_note || script.outro}\n${last ? '\n![결과 화면](img/result.jpg)\n' : ''}`,
+    script.prerequisites?.length ? `**${L.before}**\n\n${script.prerequisites.map((p) => `- ${p}`).join('\n')}\n` : '',
+    ...steps.map((s) => `## ${L.step(s.i)}${s.title}\n\n${s.instruction}\n\n${s.img ? `![${s.title}](${s.img})\n` : ''}`),
+    `## ${L.result}\n\n${script.result_note || script.outro}\n${last ? `\n![${L.resultAlt}](img/result.jpg)\n` : ''}`,
     verifiedText ? `\n_${verifiedText}_\n` : '',
   ].join('\n');
   writeText(path.join(outDir, 'article.md'), md);
@@ -148,6 +189,7 @@ ${steps
 
 export function buildDemo(wfDir, { width = 1440, maxTyping = 6 } = {}) {
   const { script, timeline, framesDir } = loadRun(wfDir);
+  const L = copyFor(script);
   const outDir = ensureDir(path.join(wfDir, 'out', 'demo'));
   const imgDir = ensureDir(path.join(outDir, 'img'));
   const jobs = [];
@@ -185,7 +227,7 @@ export function buildDemo(wfDir, { width = 1440, maxTyping = 6 } = {}) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc(script.title)} · 따라 해 보기</title>
+<title>${esc(script.title)} · ${L.tryIt}</title>
 <style>
   :root { --bg:#F7F8FA; --fg:#111827; --muted:#5F6B7A; --line:#D8DEE8; --accent:#2563EB; --accent-on-dark:#6591F1; --panel:rgba(17,24,39,0.9); }
   * { box-sizing: border-box; }
@@ -232,7 +274,7 @@ export function buildDemo(wfDir, { width = 1440, maxTyping = 6 } = {}) {
 <header><h1>${esc(script.title)}</h1><span class="progress" id="progress"></span></header>
 <div class="segments" id="segments" aria-hidden="true"></div>
 <div class="stage" id="stage"></div>
-<footer><button class="ghost" id="prev">이전</button><button class="ghost" id="restart">처음부터</button></footer>
+<footer><button class="ghost" id="prev">${L.prev}</button><button class="ghost" id="restart">${L.restart}</button></footer>
 <script>
 const DATA = ${JSON.stringify(data)};
 const stage = document.getElementById('stage');
@@ -252,17 +294,17 @@ function render() {
   stage.innerHTML = '';
   if (idx < 0) {
     stage.append(screen(DATA.steps[0].screen));
-    const o = el('div', 'overlay', (DATA.site ? '<div class="eyebrow">' + text(DATA.site) + ' 사용 가이드</div>' : '') + '<h2>' + text(DATA.title) + '</h2><p>' + text(DATA.intro) + '</p>');
-    const b = el('button', null, '시작하기'); b.onclick = () => { idx = 0; render(); }; o.append(b); stage.append(o);
-    progress.textContent = DATA.steps.length + '단계';
+    const o = el('div', 'overlay', (DATA.site ? '<div class="eyebrow">' + text(DATA.site) + '${L.guide}</div>' : '') + '<h2>' + text(DATA.title) + '</h2><p>' + text(DATA.intro) + '</p>');
+    const b = el('button', null, '${L.start}'); b.onclick = () => { idx = 0; render(); }; o.append(b); stage.append(o);
+    progress.textContent = DATA.steps.length + '${L.stepsShort}';
     mark(-1);
     return;
   }
   if (idx >= DATA.steps.length) {
     stage.append(screen(DATA.steps.at(-1).after || DATA.steps.at(-1).screen));
-    const o = el('div', 'overlay', CHECK + '<h2>완료했어요</h2><p>' + text(DATA.result || DATA.outro) + '</p>');
-    const b = el('button', null, '다시 해 보기'); b.onclick = () => { idx = 0; render(); }; o.append(b); stage.append(o);
-    progress.textContent = '완료';
+    const o = el('div', 'overlay', CHECK + '<h2>${L.done}</h2><p>' + text(DATA.result || DATA.outro) + '</p>');
+    const b = el('button', null, '${L.again}'); b.onclick = () => { idx = 0; render(); }; o.append(b); stage.append(o);
+    progress.textContent = '${L.doneShort}';
     mark(DATA.steps.length);
     return;
   }
@@ -270,7 +312,7 @@ function render() {
   stage.append(screen(s.screen));
   progress.textContent = (idx + 1) + ' / ' + DATA.steps.length;
   mark(idx);
-  if (!s.box) { const o = el('div', 'overlay', kicker(idx, s.title) + '<p>' + text(s.instruction) + '</p>'); const b = el('button', null, '다음'); b.onclick = advance; o.append(b); stage.append(o); return; }
+  if (!s.box) { const o = el('div', 'overlay', kicker(idx, s.title) + '<p>' + text(s.instruction) + '</p>'); const b = el('button', null, '${L.next}'); b.onclick = advance; o.append(b); stage.append(o); return; }
   const hs = el('div', 'hotspot', '<i></i><i></i><i></i><i></i>'); hs.style.left = s.box.l + '%'; hs.style.top = s.box.t + '%'; hs.style.width = s.box.w + '%'; hs.style.height = s.box.h + '%';
   hs.title = s.instruction; hs.onclick = advance; stage.append(hs);
   const tip = el('div', 'tip', kicker(idx, s.title) + '<p>' + text(s.instruction) + '</p>');

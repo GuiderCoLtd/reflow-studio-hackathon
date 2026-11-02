@@ -1,0 +1,25 @@
+{
+  "id": "orangehrm-demo",
+  "name": "OrangeHRM (public demo)",
+  "description": "OrangeHRM, a real HR product: its public demo site.",
+  "baseUrl": "https://opensource-demo.orangehrmlive.com/web/index.php/dashboard/index",
+  "siteMode": "live",
+  "lang": "en",
+  "login": {
+    "url": "https://opensource-demo.orangehrmlive.com/web/index.php/auth/login",
+    "steps": [
+      {
+        "fill": "input[name=username]",
+        "value": "Admin"
+      },
+      {
+        "fill": "input[name=password]",
+        "value": "admin123"
+      },
+      {
+        "click": "button[type=submit]"
+      }
+    ],
+    "loggedOutUrl": "/web/index.php/auth/login"
+  }
+}

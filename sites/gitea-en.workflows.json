@@ -1,0 +1,33 @@
+{
+  "product_summary": "Gitea is a self-hosted Git service for code, issues and pull requests.",
+  "personas": ["Developer"],
+  "workflows": [
+    {
+      "id": "create-private-repository",
+      "title": "Create a private repository with a README",
+      "title_en": "Create a private repository with a README",
+      "category": "Repositories",
+      "persona": "Developer",
+      "goal": "Create a repository owned by demo named website-release-checklist-2026 with description 'Pre-release checklist and deployment notes for the website'. Make it private, enable repository initialization with a README, and set the default branch to main. Leave unrelated options at their defaults.",
+      "start_screen": "dashboard",
+      "start_url": "http://127.0.0.1:3300/",
+      "path_hint": "Dashboard → New Repository (+) → Owner, Repository Name, Make repository private, Description, Initialize Repository, Default Branch → Create Repository",
+      "preconditions": "Logged in as demo, who can create repositories. No repository with the same name exists.",
+      "sample_data": [
+        { "field": "Owner", "value": "demo" },
+        { "field": "Repository Name", "value": "website-release-checklist-2026" },
+        { "field": "Description", "value": "Pre-release checklist and deployment notes for the website" },
+        { "field": "Make repository private", "value": "checked" },
+        { "field": "Initialize Repository (Adds .gitignore, License and README)", "value": "checked" },
+        { "field": "Default Branch", "value": "main" }
+      ],
+      "success_criteria": "The demo/website-release-checklist-2026 repository opens, is marked private, and contains a README on the main branch.",
+      "effects": ["create"],
+      "evidence": [],
+      "value": 5,
+      "difficulty": 3,
+      "est_steps": 9,
+      "unverified": "English UI labels assumed from the Korean run."
+    }
+  ]
+}

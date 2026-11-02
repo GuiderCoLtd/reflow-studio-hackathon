@@ -1,0 +1,19 @@
+{
+  "id": "dodam-spark",
+  "name": "도담워크",
+  "description": "HR & groupware SaaS for small companies: attendance, leave, approvals, expenses, members, notices (local demo instance of a fictional company).",
+  "baseUrl": "http://app.dodamwork.test/",
+  "chromeArgs": ["--host-resolver-rules=MAP app.dodamwork.test 127.0.0.1:3500", "--disable-features=HttpsUpgrades,HttpsFirstBalancedModeAutoEnable"],
+  "siteMode": "sandbox",
+  "lang": "ko",
+  "login": {
+    "url": "http://app.dodamwork.test/login",
+    "steps": [
+      { "fill": "#email", "value": "demo@dodamwork.test" },
+      { "fill": "#password", "secret": "DODAM_PASSWORD", "fallback": "DemoPass!2026" },
+      { "click": "button[type=submit]" }
+    ],
+    "loggedOutUrl": "/login"
+  },
+  "reset": { "kind": "sqlite-copy", "db": "testapps/dodam/data/dodam.db", "restart": "dodam" }
+}

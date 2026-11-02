@@ -55,11 +55,13 @@ export async function saveState(session, site) {
 
 // Open a session that is guaranteed to be logged in (when the site needs it).
 export async function openSiteSession(site, opts = {}) {
+  // A public landing page never redirects to the login form, so with no saved state log in up front.
+  const hadState = fs.existsSync(site.stateFile);
   const session = await openSession({ storageState: site.stateFile, locale: opts.locale || localeOf(site), userAgent: site.userAgent, args: site.chromeArgs || [], ...opts });
   if (site.login) {
     await session.page.goto(site.baseUrl, { waitUntil: 'domcontentloaded' }).catch(() => {});
     await waitForSettle(session);
-    if (await isLoggedOut(session, site)) await login(session, site);
+    if (!hadState || (await isLoggedOut(session, site))) await login(session, site);
   }
   return session;
 }
@@ -83,6 +85,8 @@ export function snapshotEnv(site, name = 'base') {
 
 export function restoreEnv(site, name = 'base') {
   if (site.reset?.kind !== 'sqlite-copy') return false;
+  // A site variant (e.g. an English locale) can point at its own baseline snapshot.
+  if (name === 'base' && site.reset.snapshot) name = site.reset.snapshot;
   const snap = path.join(ROOT, 'testapps', 'snapshots', `${site.reset.restart}-${name}.db`);
   if (!fs.existsSync(snap)) return false;
   execFileSync(path.join(ROOT, 'testapps', 'ctl.sh'), ['restore', site.reset.restart, name], { stdio: 'pipe' });

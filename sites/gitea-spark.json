@@ -1,0 +1,18 @@
+{
+  "id": "gitea-spark",
+  "name": "Gitea (Acme Code)",
+  "description": "Self-hosted Git service (local test instance).",
+  "baseUrl": "http://127.0.0.1:3300/",
+  "siteMode": "sandbox",
+  "lang": "ko",
+  "login": {
+    "url": "http://127.0.0.1:3300/user/login",
+    "steps": [
+      { "fill": "#user_name", "value": "demo" },
+      { "fill": "#password", "secret": "GITEA_PASSWORD", "fallback": "DemoPass!2026" },
+      { "click": "form.ui.form button.primary, form button.ui.primary" }
+    ],
+    "loggedOutUrl": "/user/login"
+  },
+  "reset": { "kind": "sqlite-copy", "db": "testapps/gitea/data/gitea.db", "restart": "gitea" }
+}

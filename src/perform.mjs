@@ -102,7 +102,13 @@ export async function performWorkflow(session, workflow, {
     history.push(summarizeStep(step));
   }
 
-  // Independent judge: did the run reach the goal?
+  return finishTrace(session, { workflow, lang, siteMode, startedAt, model, effort, final, steps, shotsDir, outDir });
+}
+
+// Independent judge: did the run reach the goal? Shared by every executor, so
+// a run is held to the same bar whichever way the browser was driven.
+export async function finishTrace(session, { workflow, lang, siteMode, startedAt, model, effort, final, steps, shotsDir, outDir, extra = {} }) {
+  const page = () => session.page;
   const finalObs = await observe(session);
   const finalShotPath = path.join(shotsDir, 'final.jpg');
   await page().screenshot({ path: finalShotPath, type: 'jpeg', quality: 80 }).catch(() => {});
@@ -127,6 +133,7 @@ export async function performWorkflow(session, workflow, {
     verdict,
     steps,
     finalUrl: finalObs.url,
+    ...extra,
   };
   writeJson(path.join(outDir, 'trace.json'), trace);
   return trace;
@@ -220,7 +227,7 @@ function stuckNote(history) {
   return '';
 }
 
-function summarizeStep(s) {
+export function summarizeStep(s) {
   const tgt = s.target ? `${s.target.role} '${truncate(s.target.name, 50)}'` : '';
   const val = s.args.value !== undefined ? ` = "${truncate(s.args.value, 40)}"` : s.args.option ? ` = '${s.args.option}'` : s.args.key ? ` ${s.args.key}` : '';
   const net = s.network?.filter((n) => n.mutating).map((n) => `${n.method} ${new URL(n.url).pathname} ${n.status}`).slice(0, 3).join(', ');

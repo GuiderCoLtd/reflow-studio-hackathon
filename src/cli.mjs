@@ -2,7 +2,7 @@
 // autoguide CLI. Stages: explore -> plan -> perform -> compile -> film -> render.
 //   node src/cli.mjs explore <site> [--max 40]
 //   node src/cli.mjs plan <site> [--focus "customer priorities"]
-//   node src/cli.mjs perform <site> <wf-id|top:N|all> [--effort medium] [--no-reset]
+//   node src/cli.mjs perform <site> <wf-id|top:N|all> [--effort medium] [--no-reset] [--provider meta] [--executor computer-use|snapshot]
 import path from 'node:path';
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -18,7 +18,9 @@ import { reflowTargetRef, buildReflowPackage, verifyInPlayer } from './reflow.mj
 import { buildArticle, buildDemo } from './docs.mjs';
 import { narrateScript } from './narrate.mjs';
 import { currentName, compareStep, refreshCopy, writeMaintenance } from './maintain.mjs';
-import { usageLedger, callJSON, MODELS } from './llm.mjs';
+import { performComputerUse, COMPUTER_VIEWPORT } from './computer.mjs';
+import { driftEvidence } from './evidence.mjs';
+import { usageLedger, callJSON, MODELS, useProvider, currentProvider } from './llm.mjs';
 import { RUNS_DIR, readJson, writeJson, setLogFile, log, stamp } from './util.mjs';
 
 function parseArgs(argv) {
@@ -109,11 +111,14 @@ async function cmdPerform(site, spec, opts) {
           .join(', ')}`;
     // --tag keeps A/B runs (e.g. another model) apart from the main trace.
     const outDir = path.join(p.wf(w.id), opts.tag ? `perform-${opts.tag}` : 'perform');
-    const session = await openSiteSession(site, { deviceScaleFactor: Number(opts.dpr || 1) });
+    // Muse Spark drives the screen through the native computer tool; the snapshot agent stays available for A/B runs.
+    const executor = opts.executor || (currentProvider() === 'meta' ? 'computer-use' : 'snapshot');
+    const perform = executor === 'computer-use' ? performComputerUse : performWorkflow;
+    const session = await openSiteSession(site, { deviceScaleFactor: Number(opts.dpr || 1), ...(executor === 'computer-use' ? { viewport: COMPUTER_VIEWPORT } : {}) });
     const t0 = Date.now();
     let trace;
     try {
-      trace = await performWorkflow(session, wf, { outDir, lang: site.lang, siteMode: site.siteMode, siteBrief, effort: opts.effort || 'medium', model: opts.model });
+      trace = await perform(session, wf, { outDir, lang: site.lang, siteMode: site.siteMode, siteBrief, effort: opts.effort || 'medium', model: opts.model });
     } finally {
       await closeSiteSession(session, site);
     }
@@ -179,21 +184,34 @@ async function cmdCompile(site, spec, opts) {
       log('compile', `skip ${id}: agent run did not pass`);
       continue;
     }
-    const script = await compileTrace(trace, { outDir: dir, lang: site.lang, site });
-    if (!opts['no-reset']) restoreEnv(site);
-    const session = await openSiteSession(site, { bypassCSP: true });
-    try {
-      // Describe every target with Reflow's own recorder while we are on the live page.
-      const refs = [];
-      const onTarget = async (page, step, loc) => refs.push({ i: step.i, ref: await reflowTargetRef(page, loc) });
-      const tl = await replayScript(session, script, { mode: 'verify', outDir: dir, onTarget });
-      writeJson(path.join(dir, 'reflow-refs.json'), { capturedAt: new Date().toISOString(), steps: refs });
-      const verdict = tl.ok ? await judgeReplay(session, script, tl, dir, 'verify') : { success: false, confidence: 1, reason: `replay stopped: ${tl.steps.at(-1)?.error}`, end_state: '' };
-      script.verified = { ok: tl.ok && verdict.success, at: new Date().toISOString(), verdict, via: tl.steps.map((r) => r.via || null) };
-      writeJson(path.join(dir, 'script.json'), script);
-      log('compile', `${script.verified.ok ? 'VERIFIED' : 'NOT VERIFIED'} ${id}: ${script.steps.length} steps (from ${trace.steps.length}) — ${verdict.reason.slice(0, 140)}`);
-    } finally {
-      await closeSiteSession(session, site);
+    // The editor can drop a step a later one depends on (an Escape that closes a popup
+    // covering the next target). A failed replay is concrete evidence, so it gets one retry.
+    let feedback = '';
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      const script = await compileTrace(trace, { outDir: dir, lang: site.lang, site, feedback });
+      if (!opts['no-reset']) restoreEnv(site);
+      const session = await openSiteSession(site, { bypassCSP: true });
+      try {
+        // Describe every target with Reflow's own recorder while we are on the live page.
+        const refs = [];
+        const onTarget = async (page, step, loc) => refs.push({ i: step.i, ref: await reflowTargetRef(page, loc) });
+        const tl = await replayScript(session, script, { mode: 'verify', outDir: dir, onTarget });
+        writeJson(path.join(dir, 'reflow-refs.json'), { capturedAt: new Date().toISOString(), steps: refs });
+        const verdict = tl.ok ? await judgeReplay(session, script, tl, dir, 'verify') : { success: false, confidence: 1, reason: `replay stopped: ${tl.steps.at(-1)?.error}`, end_state: '' };
+        script.verified = { ok: tl.ok && verdict.success, at: new Date().toISOString(), verdict, via: tl.steps.map((r) => r.via || null), attempt };
+        writeJson(path.join(dir, 'script.json'), script);
+        log('compile', `${script.verified.ok ? 'VERIFIED' : 'NOT VERIFIED'} ${id}: ${script.steps.length} steps (from ${trace.steps.length}), attempt ${attempt} — ${verdict.reason.slice(0, 140)}`);
+        if (script.verified.ok) break;
+        const failed = tl.steps.find((r) => r.status === 'error');
+        const at = failed ? script.steps[failed.i - 1] : null;
+        feedback = [
+          `You kept action log indexes [${script.steps.map((st) => st.from).join(', ')}].`,
+          at ? `A model-free replay of them stopped at index ${at.from} ("${at.title}"): ${failed.error}.` : `The replay ran, but the end state was rejected: ${verdict.reason}`,
+          'Usually a step you dropped was needed, such as an Escape or click that closes a popup covering this target. Look at the dropped steps right before it and keep what is needed.',
+        ].join(' ');
+      } finally {
+        await closeSiteSession(session, site);
+      }
     }
   }
 }
@@ -208,18 +226,24 @@ async function cmdFilm(site, spec, opts) {
       continue;
     }
     const filmDir = path.join(dir, 'film');
-    fs.rmSync(filmDir, { recursive: true, force: true });
-    if (!opts['no-reset']) restoreEnv(site);
-    const session = await openSiteSession(site, { deviceScaleFactor: Number(opts.dpr || 2), viewport: { width: 1440, height: 810 } });
-    try {
-      const tl = await replayScript(session, script, { mode: 'film', outDir: filmDir });
-      const verdict = tl.ok ? await judgeReplay(session, script, tl, filmDir, 'film') : { success: false, reason: 'film replay failed' };
-      tl.verdict = verdict;
-      writeJson(path.join(filmDir, 'timeline.json'), tl);
-      const nFrames = fs.readdirSync(path.join(filmDir, 'frames')).length;
-      log('film', `${tl.ok && verdict.success ? 'FILMED' : 'FILM FAILED'} ${id}: ${nFrames} stills, ${(tl.tEnd - tl.tStart).toFixed(1)}s — ${verdict.reason.slice(0, 120)}`);
-    } finally {
-      await closeSiteSession(session, site);
+    // An app restarted a moment ago can miss a beat (first search of a typeahead), so a
+    // replay that stops gets one more take. A take the judge rejects is not retried.
+    for (let take = 1; take <= 2; take++) {
+      fs.rmSync(filmDir, { recursive: true, force: true });
+      if (!opts['no-reset']) restoreEnv(site);
+      const session = await openSiteSession(site, { deviceScaleFactor: Number(opts.dpr || 2), viewport: { width: 1440, height: 810 } });
+      try {
+        const tl = await replayScript(session, script, { mode: 'film', outDir: filmDir });
+        const verdict = tl.ok ? await judgeReplay(session, script, tl, filmDir, 'film') : { success: false, reason: 'film replay failed' };
+        tl.verdict = verdict;
+        tl.take = take;
+        writeJson(path.join(filmDir, 'timeline.json'), tl);
+        const nFrames = fs.readdirSync(path.join(filmDir, 'frames')).length;
+        log('film', `${tl.ok && verdict.success ? 'FILMED' : 'FILM FAILED'} ${id}: ${nFrames} stills, ${(tl.tEnd - tl.tStart).toFixed(1)}s, take ${take} — ${verdict.reason.slice(0, 120)}`);
+        if (tl.ok) break;
+      } finally {
+        await closeSiteSession(session, site);
+      }
     }
   }
 }
@@ -315,9 +339,11 @@ async function cmdMaintain(site, spec, opts) {
     const session = await openSiteSession(site, { bypassCSP: true });
     const observed = [];
     let tl;
+    const checkDir = path.join(dir, 'maintain');
     try {
       tl = await replayScript(session, script, {
         mode: 'verify',
+        outDir: checkDir,
         onTarget: async (page, step, loc) => {
           observed.push({ i: step.i, found: true, name: await currentName(loc), ref: await reflowTargetRef(page, loc) });
         },
@@ -342,6 +368,19 @@ async function cmdMaintain(site, spec, opts) {
       record.status = 'DRIFT_DETECTED';
       record.summary = `step ${failedAt.i} target missing (${failedAt.error}); re-performing workflow`;
       record.actions.push('re-perform');
+      // Evidence for the reviewer, from pixels alone: is the old control still on screen?
+      if (currentProvider() === 'meta' && failedAt.shot) {
+        // The first step that drifted can sit before the one that failed: an old selector
+        // may still match something else on the new page and "pass".
+        const firstOff = diffs.find((d) => d.kind !== 'same') || { i: failedAt.i };
+        record.firstOff = firstOff;
+        const oldStep = script.steps[firstOff.i - 1];
+        const oldTrace = readJson(path.join(dir, 'perform', 'trace.json'), null);
+        const shotBefore = oldTrace?.steps?.[oldStep.from]?.shotBefore;
+        if (shotBefore && oldStep.boxPerform) {
+          record.evidence = await driftEvidence({ before: path.join(dir, 'perform', 'shots', shotBefore), after: failedAt.shot, box: oldStep.boxPerform, outDir: checkDir }).catch((err) => log('maintain', `no evidence: ${err.message.split('\n')[0]}`));
+        }
+      }
       const old = path.join(dir, `script.v${script.version || 1}.json`);
       fs.copyFileSync(path.join(dir, 'script.json'), old);
       await cmdPerform(site, id, { ...opts, 'no-reset': false });
@@ -468,6 +507,7 @@ async function main() {
     console.log('usage: cli.mjs <explore|plan|perform> <site> [workflow]');
     process.exit(1);
   }
+  if (opts.provider) useProvider(opts.provider);
   const site = loadSite(siteId);
   setLogFile(path.join(RUNS_DIR, site.id, 'log.txt'));
   if (cmd === 'explore') await cmdExplore(site, opts);

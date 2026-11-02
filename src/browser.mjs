@@ -46,6 +46,20 @@ export async function openSession({
   return session;
 }
 
+// Wrap an already open tab (a browser reached over CDP) in a session, so an
+// executor can run on a real logged-in page. Nothing here navigates or closes it.
+export function adoptPage(browser, context, page) {
+  const session = { browser, context, page, net: createNetTracker(), dialogs: [] };
+  attachPage(session, page);
+  // This context is shared with a person and other agents: only a tab this tab opened is ours.
+  context.on('page', async (p) => {
+    if ((await p.opener().catch(() => null)) !== session.page) return;
+    attachPage(session, p);
+    session.page = p;
+  });
+  return session;
+}
+
 function attachPage(session, page) {
   const net = session.net;
   page.on('request', (req) => net.onRequest(req));
