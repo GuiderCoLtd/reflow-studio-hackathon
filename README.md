@@ -1,6 +1,8 @@
 # Reflow Studio
 
-Guides that survive a redesign. Muse Spark performs a task once on the real app, plain code replays it with no model choosing clicks, and when the UI changes Spark finds the new path and the guide regenerates. Nothing is published until a person approves.
+Reflow Studio turns a task in a web app into a how-to guide, and redoes the guide when the app changes. It is for teams that keep how-to guides for software: support, onboarding and training.
+
+Give it a task, such as "create a private repository" in Gitea, an open-source code hosting app. Muse Spark 1.3 does the task in the real app through computer use, and Studio turns that run into four formats: a narrated video, a step-by-step article, a click-through demo and a walkthrough inside Reflow's in-app player. When the app changes and the old guide breaks, Spark does the task again on the new screen with no hints, and all four formats are regenerated. A person approves before anything is published.
 
 Demo video (2:54): https://youtu.be/ahgLJ2ZSCV8
 
