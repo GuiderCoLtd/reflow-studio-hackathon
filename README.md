@@ -1,81 +1,103 @@
-# autoguide
+# Reflow Studio
 
-에이전트가 웹사이트를 직접 탐색하고, 만들 가이드를 고르고, 실제로 수행해 본 뒤 그 실행을 네 가지 가이드로 만드는 프로토타입이야. 네 가지는 내레이션 영상, 단계별 캡처 글, 클릭해 보는 데모, Reflow 화면 위 가이드야.
+Guides that survive a redesign. Muse Spark performs a task once on the real app, plain code replays it with no model choosing clicks, and when the UI changes Spark finds the new path and the guide regenerates. Nothing is published until a person approves.
 
-기획 문서는 [docs/PLAN.md](docs/PLAN.md), 최신 실행 결과는 [runs/results.md](runs/results.md), 결과물 갤러리는 `runs/index.html`에 있어.
+Demo video (2:54): https://youtu.be/ahgLJ2ZSCV8
 
-## 파이프라인
+## Built during the Meta Global AI Developer Hackathon (Oct 27 – Nov 4, 2026)
 
-```
-explore → plan → perform → compile(+verify) → film → narrate → render → docs → reflow
-```
+The first commit (Oct 26) is the prototype as it stood before the hackathon. Everything after it was built during the hackathon.
 
-| 단계 | 하는 일 | 코드 |
+| New | Where |
+|---|---|
+| Muse Spark 1.3 computer-use executor: screenshot in, pixel actions out, at 1280×720 | `src/computer.mjs`, `callComputer` in `src/llm.mjs` |
+| Pixel-to-element resolver: every pixel Spark returns becomes the real element plus verified locators, so the guide replays without a model | `src/computer.mjs` |
+| Policy gate on safety checks: a `computer_action_requires_confirmation` check is acknowledged only for actions the gate lets through; refused actions never run | `src/computer.mjs`, `src/safety.mjs` |
+| SAM 3.1 drift evidence: Spark names the control that disappeared, SAM counts it on the before and after screenshots | `src/evidence.mjs`, `segment` in `src/llm.mjs` |
+| Muse Voice Transcribe listen-back: each narrated line of the regenerated video is transcribed and flagged when it drifts from the script | `src/narrate.mjs`, `transcribe` in `src/llm.mjs` |
+| A real redesign to test against: Gitea 28.2 navigation templates with the "+" menu removed (Workspace > Create new instead) | `testapps/gitea-ui-v2/`, `testapps/ctl.sh` |
+| Meta provider for planning, compiling and judging; English guide copy | `src/cli.mjs`, `src/compile.mjs`, `src/docs.mjs` |
+
+Existed before the hackathon: the Reflow browser extension and its player (a separate product, not in this repository), and the Studio pipeline in the first commit: explore, plan, perform with a DOM snapshot agent, compile, deterministic replay, film, narrate, render and docs.
+
+## How it works
+
+1. **Perform.** Spark gets the goal and a screenshot and answers with pixel actions through the native computer tool. Before each action the executor finds the element under the pixel, records a locator bundle, and runs the action through the policy gate.
+2. **Compile and verify.** Detours are dropped and the copy is written for each format. The test database is restored and the guide is replayed as plain code to verify it before anything is filmed.
+3. **Produce.** The verified run is filmed and narrated, and becomes a step-by-step article, a click-through demo and a guide for Reflow's in-app player.
+4. **Maintain.** After the app changes, `maintain` replays every guide without a model. When a step fails, SAM 3.1 checks the old control on both screenshots, Spark performs the task again on the new UI with no path given, and the guide is recompiled, re-verified, refilmed and listened back. It then stops at `REVIEW_REQUIRED`.
+
+## Results
+
+Same 11 workflows on Gitea and Vikunja (Oct 31):
+
+| | DOM snapshot agent | Muse Spark 1.3 computer use |
 |---|---|---|
-| explore | LLM 없이 도는 읽기 전용 크롤링이야. 링크를 따라가고, 생성·설정·메뉴·탭·접힌 버튼은 열어 본 뒤 닫아(제출하지 않음). 결과는 화면 지도와 API 엔드포인트 목록이야 | `src/explore.mjs` |
-| plan | 화면별 요약을 만들고, 근거 화면 ID가 붙은 워크플로우 카탈로그를 뽑아. 성공 기준과 샘플 데이터는 실행 전에 정해 | `src/plan.mjs` |
-| perform | LLM 에이전트가 브라우저를 조작해. 액션마다 로케이터 묶음, 스크린샷, 네트워크 변경을 기록하고 안전 게이트를 거쳐. 별도 판정 모델이 성공 여부를 정해 | `src/perform.mjs`, `src/safety.mjs` |
-| compile | 헛걸음을 지우고, 형식별 문구(제목·안내문·내레이션)를 써. 그다음 DB를 복원하고 모델 없이 결정론적으로 재실행해서 검증해 | `src/compile.mjs`, `src/replay.mjs` |
-| film | 스톱모션 촬영이야. 동작 단위마다 DPR 2 스틸을 찍고, 대상·영역 좌표를 기록해 | `src/replay.mjs` |
-| narrate | 문장별 TTS를 만들어(OpenAI 또는 ElevenLabs). 실제 길이를 재서 쓰고 캐시해 | `src/tts.mjs`, `src/narrate.mjs` |
-| render | 영상을 합성해. 가상 카메라, 커서, 클릭 효과, 강조, 자막(SRT/VTT), 챕터가 들어가 | `render/video.py` |
-| docs | 캡처 글(HTML·Markdown)과 인터랙티브 데모 HTML을 만들어 | `src/docs.mjs`, `src/py/stills.py` |
-| reflow | Reflow 녹화기 코드(`content.js buildTargetRef`)로 대상을 기술해서 Reflow 가이드 패키지를 만들어. 그다음 Reflow 실제 플레이어(임베드 런타임)를 주입해서 재생을 검증해 | `src/reflow.mjs` |
+| Task performed | 11/11 | 11/11 |
+| Replayed with no model | 11/11 | 11/11 |
+| Filmed | 11/11 | 11/11 |
+| Completed in Reflow's player | 10/11 | 10/11 |
+| Total run time | 503 s | 1,311 s |
 
-## 실행
+- Click accuracy from screenshots alone, 6 real buttons: 36/36, all within 4 px.
+- Redesign test (Gitea): the old guide's first selector still matched something and opened the account menu, then step 2 failed with target not found. SAM 3.1 found the "plus icon" twice before and zero times after. Spark re-performed the task in 9 turns (113 s) with no path given; the repaired guide has 8 steps and replays without a model.
+- Safety test: a read-only task that asks for a delete. Spark reached for "Delete This Repository", the gate refused it, and no write request was sent.
+
+## Quick start
 
 ```bash
-export OPENAI_API_KEY=...            # ELEVENLABS_API_KEY는 --voice elevenlabs 쓸 때만
-./testapps/ctl.sh start vikunja      # 로컬 테스트 앱 (gitea도 같은 방식)
+npm install
+npx playwright install chromium
+export MODEL_API_KEY=...     # Meta Model API key (or put it in ~/.config/meta-model-api/key)
+export OPENAI_API_KEY=...    # narration voice only
 
-node src/cli.mjs explore vikunja --max 30
-node src/cli.mjs plan vikunja [--focus "고객이 자주 묻는 업무"]
-node src/cli.mjs run vikunja top:5   # perform→compile→film→narrate→render→docs→reflow
-node src/report.mjs                  # runs/results.md, runs/index.html 갱신
+./testapps/ctl.sh start gitea
+node src/cli.mjs run gitea-demo create-private-repository --provider meta
+
+GITEA_UI=v2 ./testapps/ctl.sh restart gitea    # apply the redesign
+node src/cli.mjs maintain gitea-demo create-private-repository --provider meta
 ```
 
-- 문의 한 건에서 가이드 만들기: `node src/cli.mjs ask vikunja "팀원들이랑 같은 프로젝트를 같이 보고 싶은데 어떻게 공유하나요?"`. 질문을 업무 명세로 바꿔 `run`까지 이어서 해.
-- 최신화(Replay): `node src/cli.mjs maintain gitea top:5`. 모델 없이 다시 실행해서 단계마다 같음/이름 바뀜/사라짐을 판정해. 바뀐 가이드는 문구를 갱신하고 4형식을 다시 만든 뒤 `REVIEW_REQUIRED`로 멈춰(`maintenance.json`, `script.vN.json`).
-- 워크플로우 선택: `top:N`(가치 순), `all`, 또는 `id1,id2`.
-- 고객이 직접 지정한 업무는 `sites/<site>.workflows.json`에 두면 플래너 카탈로그 대신 그걸 써. 홈택스 예시가 이 방식이야.
-- 단계 하나만 돌리려면 `node src/cli.mjs <perform|compile|film|narrate|render|docs|reflow|refs> <site> <spec>`.
-- 모델 비교: `perform ... --model gpt-6-luna --tag luna`로 하면 결과가 `perform-luna/`에 따로 쌓여.
+- `run` goes through perform, compile and verify, film, narrate, render, docs and reflow. Outputs land in `runs/<site>/wf/<workflow>/`.
+- Single stages: `node src/cli.mjs <perform|compile|film|narrate|render|docs|reflow> <site> <workflow>`.
+- `--executor snapshot` runs the same task with the DOM snapshot agent for comparison.
+- Narration voice uses OpenAI or ElevenLabs text-to-speech, since the Meta Model API has no speech synthesis model.
+- The reflow stage reads the Reflow extension source from `REFLOW_SRC`, which is not public. Every other stage runs without it.
 
-## 사이트 설정 (`sites/*.json`)
+## Notes from building with Muse Spark computer use
 
-- `siteMode: "sandbox"`: 테스트 앱이나 테스트 계정이야. 승인된 생성·수정을 허용하고, 실행 전에 DB 스냅샷을 복원해(`reset`).
-- `siteMode: "live"`: 실서비스야. 읽기 업무만 해. 비가역 동작은 실행하지 않고 ghost 단계로만 찍어.
-- `login`: 세션을 시작할 때 로그인 상태를 확인해. 풀려 있으면 다시 로그인하고 최신 상태를 저장해. refresh 토큰을 회전시키는 앱 대응이야.
+- Coordinates: the model answers on a 0–1000 grid and the API converts it to pixels. Coordinates you put in a prompt must be grid values; pixel values come back shifted, and anything above 1000 comes back as 500.
+- Viewport: 1280×720 for the executor. At 1440×810 the y coordinates drift. Replay and filming work on the DOM, so they keep 1440×810.
+- Icons: position from the screenshot alone is accurate, but the meaning of an icon such as "⋯" is not. Each turn also sends the visible controls with their labels and grid coordinates.
+- `tool_choice: "required"` returns 400; only `auto` works.
+- Every pending safety check must be acknowledged exactly once, or the next call returns 400. A blocked action is therefore never answered; the run continues in a new conversation from the current screen.
+- A stored response chain occasionally returns 500; the executor restarts from the current screen.
 
-## 처음 받았을 때 준비
+## Sites (`sites/*.json`)
 
-저장소에는 앱 실행 파일과 DB, 실행 산출물(`runs/`)이 들어 있지 않아. 처음 한 번 아래를 실행해.
+- `siteMode: "sandbox"`: a test app or test account. Approved creates and edits are allowed, and the database snapshot is restored before each run (`reset`).
+- `siteMode: "live"`: a real service. Read-only tasks only; irreversible actions are filmed as ghost steps and never executed.
+- `login`: checked at the start of every session, with a fresh login when the session has expired.
+
+## Test apps (`testapps/`)
+
+Vikunja 2.7.1 (tasks and projects, Vue SPA) and Gitea 28.2 (code hosting, server-rendered) run locally on sqlite. The account is `demo` / `DemoPass!2026`, local only.
 
 ```bash
-npm install                                   # playwright, openai
-npx playwright install chromium
-# Vikunja 2.7.1, Gitea 28.2 실행 파일 받기
 curl -sL -o /tmp/vikunja.zip https://github.com/go-vikunja/vikunja/releases/download/v2.7.1/vikunja-v2.7.1-linux-amd64-full.zip
 unzip -o /tmp/vikunja.zip -d testapps/vikunja
 curl -sL -o testapps/gitea/gitea https://dl.gitea.com/gitea/28.2.0/gitea-28.2.0-linux-amd64 && chmod +x testapps/gitea/gitea
-# DB 초기화, demo 계정, 샘플 데이터, 기준 스냅샷
 (cd testapps/vikunja && source env.sh && export VIKUNJA_SERVICE_SECRET=$VIKUNJA_SERVICE_JWTSECRET && ./vikunja-v2.7.1-linux-amd64 migrate && ./vikunja-v2.7.1-linux-amd64 user create -u demo -e demo@example.com -p 'DemoPass!2026')
 (cd testapps/gitea && ./gitea --config custom/conf/app.ini migrate && ./gitea --config custom/conf/app.ini admin user create --admin --username demo --password 'DemoPass!2026' --email demo@example.com --must-change-password=false)
 ./testapps/ctl.sh start vikunja && ./testapps/ctl.sh start gitea
 node testapps/seed.mjs all
 ./testapps/ctl.sh snapshot vikunja base && ./testapps/ctl.sh snapshot gitea base
+./testapps/ctl.sh snapshot gitea base-demo     # the snapshot sites/gitea-demo.json restores
 ```
 
-- `env.sh`와 `app.ini` 안의 경로는 이 머신 기준(`/home/jay/...`)이야. 다른 위치에 받았으면 그 부분만 고쳐.
-- 환경 변수: `OPENAI_API_KEY`는 필수야. ElevenLabs 음성을 쓸 때만 `ELEVENLABS_API_KEY`가 필요해. Reflow 연동은 `REFLOW_SRC`(Reflow 확장 소스 경로)를 써.
+- Paths inside `testapps/vikunja/env.sh` and `testapps/gitea/custom/conf/app.ini` are absolute; change them to where you cloned the repository.
+- `ctl.sh snapshot|restore <app> [name]` saves and restores the database, including the WAL checkpoint.
 
-## 테스트 앱 (`testapps/`)
+## Requirements
 
-- Vikunja 2.7.1(할 일·프로젝트 관리, Vue SPA)과 Gitea 28.2(코드 호스팅, 서버 렌더)를 sqlite로 로컬에서 돌려.
-- `seed.mjs`로 한국어 샘플 데이터를 넣어.
-- `ctl.sh snapshot|restore <app>`로 초기 상태를 저장하고 복원해. WAL 체크포인트까지 포함해.
-- 계정은 `demo` / `DemoPass!2026`(로컬 전용)이야.
-
-## 의존성
-
-Node 22, Playwright 1.64(Chromium 1248), openai SDK 7, Python 3.12, OpenCV, Pillow, ffmpeg 6, 그리고 Pretendard 또는 Nanum 폰트가 필요해. Reflow 연동은 `REFLOW_SRC`(기본 `/home/jay/Business/Dev/Reflow-CTO/reflowguide`)의 `content.js`, `content-player.js`, `embed/*`를 읽기만 하고 수정하지 않아.
+Node 22, Playwright 1.64 (Chromium), the openai SDK 7, Python 3.12 with OpenCV and Pillow, ffmpeg 6, and the Pretendard or Nanum font for Korean captions.
