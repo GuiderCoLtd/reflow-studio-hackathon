@@ -5,7 +5,7 @@
 //   node src/cli.mjs perform <site> <wf-id|top:N|all> [--effort medium] [--no-reset] [--provider meta] [--executor computer-use|snapshot]
 import path from 'node:path';
 import fs from 'node:fs';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { loadSite, openSiteSession, closeSiteSession, isLoggedOut, login, restoreEnv } from './sites.mjs';
 import { exploreSite } from './explore.mjs';
 import { summarizePages, proposeWorkflows, buildBrief } from './plan.mjs';
@@ -14,7 +14,7 @@ import { compileTrace } from './compile.mjs';
 import { replayScript } from './replay.mjs';
 import { observe } from './observe.mjs';
 import { waitForSettle } from './browser.mjs';
-import { reflowTargetRef, buildReflowPackage, verifyInPlayer } from './reflow.mjs';
+import { reflowTargetRef, buildReflowPackage, verifyInPlayer, reflowAvailable } from './reflow.mjs';
 import { buildArticle, buildDemo } from './docs.mjs';
 import { narrateScript } from './narrate.mjs';
 import { currentName, compareStep, refreshCopy, writeMaintenance } from './maintain.mjs';
@@ -295,6 +295,11 @@ async function cmdReflow(site, spec, opts) {
   const p = paths(site.id);
   for (const id of ids(site, spec)) {
     const dir = p.wf(id);
+    if (!reflowAvailable()) {
+      writeJson(path.join(dir, 'out', 'reflow', 'player-check.json'), { completed: null, skipped: 'REFLOW_SRC not set: the Reflow player check did not run' });
+      log('reflow', `${id}: skipped, REFLOW_SRC not set (player check not run)`);
+      continue;
+    }
     if (!fs.existsSync(path.join(dir, 'reflow-refs.json')) || !filmUsable(dir)) continue;
     const script = readJson(path.join(dir, 'script.json'));
     const pkg = buildReflowPackage(dir);
@@ -317,10 +322,12 @@ async function cmdRender(site, spec, opts) {
       log('render', `skip ${id}: film run not usable (needs review)`);
       continue;
     }
-    const args = ['-m', '12G', 'python3', path.join('render', 'video.py'), '--wf', dir];
+    const args = ['python3', path.join('render', 'video.py'), '--wf', dir];
     if (!fs.existsSync(path.join(dir, 'narration.json'))) args.push('--no-audio');
     const t0 = Date.now();
-    execFileSync('memcap', args, { stdio: 'inherit', cwd: path.resolve(RUNS_DIR, '..') });
+    // memcap caps memory on the machine this was built on; elsewhere run python directly.
+    const capped = spawnSync('sh', ['-c', 'command -v memcap'], { stdio: 'ignore' }).status === 0;
+    execFileSync(capped ? 'memcap' : args[0], capped ? ['-m', '12G', ...args] : args.slice(1), { stdio: 'inherit', cwd: path.resolve(RUNS_DIR, '..') });
     log('render', `${id}: ${path.join(dir, 'out', 'video.mp4')} in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
   }
 }
@@ -417,9 +424,9 @@ async function cmdMaintain(site, spec, opts) {
       for (const stage of ['film', 'narrate', 'render', 'docs', 'reflow']) await STAGES[stage](site, id, opts);
       const usable = filmUsable(dir);
       const player = readJson(path.join(dir, 'out', 'reflow', 'player-check.json'), null);
-      record.artifacts = { film: usable, reflowCompleted: player?.completed ?? null };
+      record.artifacts = { film: usable, reflowCompleted: player?.completed ?? null, ...(player?.skipped ? { reflowCheck: player.skipped } : {}) };
       record.status = usable && player?.completed !== false ? 'REVIEW_REQUIRED' : 'REPAIR_FAILED';
-      record.actions.push('regenerated: film, narration, video, article, demo, reflow');
+      record.actions.push(`regenerated: film, narration, video, article, demo${player?.skipped ? '; Reflow player check not run' : ', reflow'}`);
     }
     writeMaintenance(dir, record);
     report.push({ id, status: record.status, summary: record.summary });

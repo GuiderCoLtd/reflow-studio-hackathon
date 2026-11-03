@@ -11,7 +11,10 @@ import { ROOT, ensureDir, readJson, writeJson, log, sleep } from './util.mjs';
 import { resolveBundle } from './locators.mjs';
 import { waitForSettle } from './browser.mjs';
 
-const REFLOW_SRC = process.env.REFLOW_SRC || '/home/jay/Business/Dev/Reflow-CTO/reflowguide';
+// The Reflow extension source is a separate, private product. Without it the
+// Reflow-specific steps (target refs, player check) are skipped and say so.
+const REFLOW_SRC = process.env.REFLOW_SRC || path.join(ROOT, '..', 'Reflow-CTO', 'reflowguide');
+export const reflowAvailable = () => fs.existsSync(path.join(REFLOW_SRC, 'content.js'));
 const VENDOR = ensureDir(path.join(ROOT, 'runs', '_vendor'));
 
 const CHROME_SHIM = `globalThis.chrome = globalThis.chrome || {
@@ -50,6 +53,7 @@ function reflowCommit() {
 
 // Describe the element behind `locator` with Reflow's recorder.
 export async function reflowTargetRef(page, locator) {
+  if (!reflowAvailable()) return null;
   const has = await page.evaluate(() => !!globalThis.__AGREC).catch(() => false);
   if (!has) await page.addScriptTag({ content: reflowBundles().rec });
   return locator.evaluate(async (el) => {

@@ -3,9 +3,9 @@
 Run from the repository root:
 
 ```bash
-memcap -m 12G python3 render/video.py --wf runs/hometax/wf/business-status-lookup
-memcap -m 12G python3 render/video.py --wf runs/gitea/wf/create-private-repository
-memcap -m 12G python3 render/video.py --wf runs/gitea/wf/check-requested-reviews
+python3 render/video.py --wf runs/hometax/wf/business-status-lookup
+python3 render/video.py --wf runs/gitea/wf/create-private-repository
+python3 render/video.py --wf runs/gitea/wf/check-requested-reviews
 ```
 
 Options: `--out runs/.../out/variant`, `--size 1920x1080`, `--fps 30`,
@@ -79,8 +79,8 @@ Inputs are never modified. Missing opening stills or narration WAVs fail clearly
 ## Verification
 
 ```bash
-memcap -m 12G python3 -m unittest discover -s render -p 'test_*.py' -v
-memcap -m 12G python3 render/verify.py \
+python3 -m unittest discover -s render -p 'test_*.py' -v
+python3 render/verify.py \
   runs/hometax/wf/business-status-lookup/out \
   runs/gitea/wf/create-private-repository/out \
   runs/gitea/wf/check-requested-reviews/out
